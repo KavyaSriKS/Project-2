@@ -1,56 +1,49 @@
-import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
-
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge, Lasso
 from xgboost import XGBRegressor
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Load the California housing dataset instead of load_boston
-from sklearn.datasets import fetch_california_housing
-housing = fetch_california_housing()
-df = pd.DataFrame(housing.data, columns=housing.feature_names)
-df['PRICE'] = housing.target  # Assuming 'PRICE' is the target variable name
+# Load dataset (e.g., from CSV)
+df = pd.read_csv('house_prices.csv')  # Replace with your dataset
 
-# 1. Data Preprocessing
-X = df.drop('PRICE', axis=1)
-y = df['PRICE']
+# Quick EDA (optional)
+print(df.head())
+print(df.info())
 
-# Scaling features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+# Handle missing values (simple example)
+df = df.dropna()
 
-# Split into train-test
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+# Feature selection
+X = df.drop(['SalePrice'], axis=1)  # Features
+y = df['SalePrice']  # Target variable
 
-# 2. Model Selection and Training
-models = {
-    "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
-    "Lasso": Lasso(alpha=0.1),
-    "Ridge": Ridge(alpha=1.0),
-    "XGBoost": XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
-}
+# Convert categorical variables if any
+X = pd.get_dummies(X)
 
-# Train and evaluate each model
-for name, model in models.items():
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    print(f"\n{name} Performance:")
-    print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
-    print("R² Score:", r2_score(y_test, y_pred))
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 3. Feature Importance from Random Forest
-rf = models['Random Forest']
-importances = rf.feature_importances_
-features = X.columns
-indices = np.argsort(importances)[::-1]
+# XGBoost Regression model
+model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42)
+model.fit(X_train, y_train)
 
+# Prediction
+y_pred = model.predict(X_test)
+
+# Evaluation
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"Mean Squared Error: {mse}")
+print(f"R^2 Score: {r2}")
+
+# Visualization
 plt.figure(figsize=(10,6))
-plt.title("Feature Importances - Random Forest")
-sns.barplot(x=importances[indices], y=features[indices])
+sns.scatterplot(x=y_test, y=y_pred)
+plt.xlabel("Actual Prices")
+plt.ylabel("Predicted Prices")
+plt.title("Actual vs Predicted House Prices")
 plt.show()
